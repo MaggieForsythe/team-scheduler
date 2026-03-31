@@ -15,3 +15,108 @@ body {
   border-radius: 10px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
+
+h2, h3 {
+  margin-top: 0;
+}
+
+input {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin: 8px 0;
+}
+
+button {
+  padding: 8px 12px;
+  margin-top: 8px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #45a049;
+}
+
+li {
+  margin: 10px 0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Scheduler</h2>
+
+<input id="name" placeholder="Name">
+<input id="date" type="date">
+<input id="time" type="time">
+
+<button onclick="add()">Add</button>
+
+<h3>Appointments</h3>
+<ul id="list"></ul>
+
+</div>
+
+<script>
+async function add() {
+  const name = document.getElementById('name').value;
+  const date = document.getElementById('date').value;
+  const time = document.getElementById('time').value;
+
+  const datetime = new Date(date + "T" + time);
+
+  await fetch('/appointments', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      name,
+      datetime: datetime.toISOString()
+    })
+  });
+
+  load();
+}
+
+async function load() {
+  const res = await fetch('/appointments');
+  const data = await res.json();
+
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+
+  data.forEach(a => {
+    const li = document.createElement('li');
+
+    const localTime = a.datetime
+      ? new Date(a.datetime).toLocaleString()
+      : '';
+
+    li.textContent = a.name + " - " + localTime;
+
+    const btn = document.createElement('button');
+    btn.textContent = " Delete";
+
+    btn.onclick = async () => {
+      await fetch('/appointments/' + a.id, {
+        method: 'DELETE'
+      });
+      load();
+    };
+
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
+}
+
+load();
+</script>
+
+</body>
+</html>
