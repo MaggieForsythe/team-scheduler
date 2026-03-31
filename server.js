@@ -37,15 +37,16 @@ app.get('/appointments', (req, res) => {
 
 // add appointment
 app.post('/appointments', (req, res) => {
-  const { name, datetime } = req.body;
+  const { name, datetime, person } = req.body;
 
   const appointments = loadData();
 
   const item = {
-    id: Date.now(),
-    name,
-    datetime
-  };
+  id: Date.now(),
+  name,
+  datetime,
+  person
+};
 
   appointments.push(item);
   saveData(appointments);
