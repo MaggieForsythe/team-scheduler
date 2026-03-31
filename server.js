@@ -1,72 +1,100 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
+<h2>Team Scheduler</h2>
 
-const app = express();
+<input id="name" placeholder="Meeting name">
+<input id="person" placeholder="Person (e.g. John)">
+<input id="date" type="date">
+<input id="time" type="time">
 
-app.use(express.json());
-app.use(express.static(__dirname));
+<button onclick="add()">Add</button>
 
-const DATA_FILE = path.join(__dirname, 'data.json');
+<h3>Appointments</h3>
+<ul id="list"></ul>
 
-// Load data from file
-function loadData() {
-  try {
-    const data = fs.readFileSync(DATA_FILE);
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
+</div>
+
+<script>
+async function add() {
+  const name = document.getElementById('name').value;
+  const person = document.getElementById('person').value;
+  const date = document.getElementById('date').value;
+  const time = document.getElementById('time').value;
+
+  const datetime = new Date(date + "T" + time);
+
+  await fetch('/appointments', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      name,
+      person,
+      datetime: datetime.toISOString()
+    })
+  });
+
+  load();
 }
 
-// Save data to file
-function saveData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+async function load() {
+  const res = await fetch('/appointments');
+  const data = await res.json();
+
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+
+  data.forEach(a => {
+    const li = document.createElement('li');
+
+    const localTime = new Date(a.datetime).toLocaleString();
+    li.textContent = a.person + ": " + a.name + " - " + localTime;
+
+    const btn = document.createElement('button');
+    btn.textContent = " Delete";
+
+    btn.onclick = async () => {
+      await fetch('/appointments/' + a.id, { method: 'DELETE' });
+      load();
+    };
+
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
 }
 
-// homepage
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+load();
+</script>
 
-// get appointments
-app.get('/appointments', (req, res) => {
-  const appointments = loadData();
-  res.json(appointments);
-});
+</body>
+</html>
+👉 Click:
 
-// add appointment
-app.post('/appointments', (req, res) => {
-  const { name, datetime, person } = req.body;
+👉 Commit changes
 
-  const appointments = loadData();
+🚀 STEP 3 — Deploy
 
-  const item = {
-  id: Date.now(),
-  name,
-  datetime,
-  person
-};
+Go to Render
 
-  appointments.push(item);
-  saveData(appointments);
+👉 Click:
 
-  res.json(item);
-});
+Manual Deploy
+Deploy latest commit
+🌐 STEP 4 — Test
 
-// delete appointment
-app.delete('/appointments/:id', (req, res) => {
-  const id = Number(req.params.id);
+👉 Open your app
+👉 Hard refresh:
 
-  let appointments = loadData();
-  appointments = appointments.filter(a => a.id !== id);
+Command + Shift + R
+🎉 Expected result
 
-  saveData(appointments);
+You should now see:
 
-  res.json({ ok: true });
-});
+👉 Example:
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+John: Team Meeting - 3/25/2026, 10:00 AM
+👍 This avoids ALL errors
+No partial edits
+No missed lines
+Clean working version
+
+👉 Tell me:
+
+Do you now see the “Person: Meeting” format?
