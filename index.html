@@ -54,6 +54,7 @@ li {
 <h2>Scheduler</h2>
 
 <input id="name" placeholder="Name">
+<input id="person" placeholder="Person (e.g. John)">  
 <input id="date" type="date">
 <input id="time" type="time">
 
@@ -67,6 +68,7 @@ li {
 <script>
 async function add() {
   const name = document.getElementById('name').value;
+  const person = document.getElementById('person').value;
   const date = document.getElementById('date').value;
   const time = document.getElementById('time').value;
 
@@ -75,12 +77,8 @@ async function add() {
   await fetch('/appointments', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      name,
-      datetime: datetime.toISOString()
-    })
+    const person = document.getElementById('person').value;
   });
-
   load();
 }
 
@@ -98,7 +96,7 @@ async function load() {
       ? new Date(a.datetime).toLocaleString()
       : '';
 
-    li.textContent = a.name + " - " + localTime;
+    li.textContent = a.person + ": " + a.name + " - " + localTime;
 
     const btn = document.createElement('button');
     btn.textContent = " Delete";
