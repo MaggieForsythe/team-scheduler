@@ -1,100 +1,64 @@
-<h2>Team Scheduler</h2>
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
 
-<input id="name" placeholder="Meeting name">
-<input id="person" placeholder="Person (e.g. John)">
-<input id="date" type="date">
-<input id="time" type="time">
+const app = express();
 
-<button onclick="add()">Add</button>
+app.use(express.json());
+app.use(express.static(__dirname));
 
-<h3>Appointments</h3>
-<ul id="list"></ul>
+const DATA_FILE = path.join(__dirname, 'data.json');
 
-</div>
-
-<script>
-async function add() {
-  const name = document.getElementById('name').value;
-  const person = document.getElementById('person').value;
-  const date = document.getElementById('date').value;
-  const time = document.getElementById('time').value;
-
-  const datetime = new Date(date + "T" + time);
-
-  await fetch('/appointments', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      name,
-      person,
-      datetime: datetime.toISOString()
-    })
-  });
-
-  load();
+function loadData() {
+  try {
+    return JSON.parse(fs.readFileSync(DATA_FILE));
+  } catch {
+    return [];
+  }
 }
 
-async function load() {
-  const res = await fetch('/appointments');
-  const data = await res.json();
-
-  const list = document.getElementById('list');
-  list.innerHTML = '';
-
-  data.forEach(a => {
-    const li = document.createElement('li');
-
-    const localTime = new Date(a.datetime).toLocaleString();
-    li.textContent = a.person + ": " + a.name + " - " + localTime;
-
-    const btn = document.createElement('button');
-    btn.textContent = " Delete";
-
-    btn.onclick = async () => {
-      await fetch('/appointments/' + a.id, { method: 'DELETE' });
-      load();
-    };
-
-    li.appendChild(btn);
-    list.appendChild(li);
-  });
+function saveData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-load();
-</script>
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
-</body>
-</html>
-👉 Click:
+app.get('/appointments', (req, res) => {
+  res.json(loadData());
+});
 
-👉 Commit changes
+app.post('/appointments', (req, res) => {
+  const { name, datetime, person } = req.body;
 
-🚀 STEP 3 — Deploy
+  const appointments = loadData();
 
-Go to Render
+  const item = {
+    id: Date.now(),
+    name,
+    datetime,
+    person
+  };
 
-👉 Click:
+  appointments.push(item);
+  saveData(appointments);
 
-Manual Deploy
-Deploy latest commit
-🌐 STEP 4 — Test
+  res.json(item);
+});
 
-👉 Open your app
-👉 Hard refresh:
+app.delete('/appointments/:id', (req, res) => {
+  const id = Number(req.params.id);
 
-Command + Shift + R
-🎉 Expected result
+  let appointments = loadData();
+  appointments = appointments.filter(a => a.id !== id);
 
-You should now see:
+  saveData(appointments);
 
-👉 Example:
+  res.json({ ok: true });
+});
 
-John: Team Meeting - 3/25/2026, 10:00 AM
-👍 This avoids ALL errors
-No partial edits
-No missed lines
-Clean working version
-
-👉 Tell me:
-
-Do you now see the “Person: Meeting” format?
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
