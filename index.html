@@ -1,71 +1,7 @@
 <!DOCTYPE html>
 <html>
-<body>
-
-<h2>Scheduler</h2>
-
-<input id="name" placeholder="Name"><br>
-<input id="date" type="date"><br>
-<input id="time" type="time"><br>
-
-<button onclick="add()">Add</button>
-
-<h3>Appointments</h3>
-<ul id="list"></ul>
-
-<script>
-async function add() {
-  const name = document.getElementById('name').value;
-  const date = document.getElementById('date').value;
-  const time = document.getElementById('time').value;
-
-  const datetime = new Date(date + "T" + time);
-
-  await fetch('/appointments', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      name,
-      datetime: datetime.toISOString()
-    })
-  });
-
-  load();
-}
-
-async function load() {
-  const res = await fetch('/appointments');
-  const data = await res.json();
-
-  const list = document.getElementById('list');
-  list.innerHTML = '';
-
-  data.forEach(a => {
-    const li = document.createElement('li');
-
-    const localTime = a.datetime
-      ? new Date(a.datetime).toLocaleString()
-      : '';
-
-    li.textContent = a.name + " - " + localTime;
-
-    const btn = document.createElement('button');
-    btn.textContent = " Delete";
-
-    btn.onclick = async () => {
-      await fetch('/appointments/' + a.id, {
-        method: 'DELETE'
-      });
-      load();
-    };
-
-    li.appendChild(btn);
-    list.appendChild(li);
-  });
-}
-
-load();
-</script>
-
-</body>
-</html>
+<head>
+<style>
+body {
+  font-family: Arial;
+  max-width:
