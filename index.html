@@ -13,11 +13,6 @@ body {
   background: white;
   padding: 20px;
   border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-h2, h3 {
-  margin-top: 0;
 }
 
 input {
@@ -29,16 +24,10 @@ input {
 
 button {
   padding: 8px 12px;
-  margin-top: 8px;
   background: #4CAF50;
   color: white;
   border: none;
   border-radius: 5px;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #45a049;
 }
 
 li {
@@ -51,10 +40,10 @@ li {
 
 <div class="container">
 
-<h2>Scheduler</h2>
+<h2>Team Scheduler</h2>
 
-<input id="name" placeholder="Name">
-<input id="person" placeholder="Person (e.g. John)">  
+<input id="name" placeholder="Meeting name">
+<input id="person" placeholder="Person">
 <input id="date" type="date">
 <input id="time" type="time">
 
@@ -76,9 +65,14 @@ async function add() {
 
   await fetch('/appointments', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    const person = document.getElementById('person').value;
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: name,
+      person: person,
+      datetime: datetime.toISOString()
+    })
   });
+
   load();
 }
 
@@ -92,19 +86,14 @@ async function load() {
   data.forEach(a => {
     const li = document.createElement('li');
 
-    const localTime = a.datetime
-      ? new Date(a.datetime).toLocaleString()
-      : '';
-
+    const localTime = new Date(a.datetime).toLocaleString();
     li.textContent = a.person + ": " + a.name + " - " + localTime;
 
     const btn = document.createElement('button');
     btn.textContent = " Delete";
 
     btn.onclick = async () => {
-      await fetch('/appointments/' + a.id, {
-        method: 'DELETE'
-      });
+      await fetch('/appointments/' + a.id, { method: 'DELETE' });
       load();
     };
 
