@@ -20,8 +20,13 @@ app.get('/appointments', (req, res) => {
 });
 
 app.post('/appointments', (req, res) => {
-  const { name } = req.body;
-  const item = { id: Date.now(), name };
+  const { name, datetime } = req.body;
+
+const item = {
+  id: Date.now(),
+  name,
+  datetime
+};
   appointments.push(item);
   res.json(item);
 });
