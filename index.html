@@ -1,0 +1,55 @@
+<html>
+<body>
+
+<h2>Scheduler</h2>
+
+<input id="name" placeholder="Name">
+<button onclick="add()">Add</button>
+
+<h3>Appointments</h3>
+<ul id="list"></ul>
+
+<script>
+async function add() {
+  const name = document.getElementById('name').value;
+
+  await fetch('/appointments', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name })
+  });
+
+  load();
+}
+
+async function load() {
+  const res = await fetch('/appointments');
+  const data = await res.json();
+
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+
+  data.forEach(a => {
+    const li = document.createElement('li');
+    li.textContent = a.name;
+
+    const btn = document.createElement('button');
+    btn.textContent = " Delete";
+
+    btn.onclick = async () => {
+      await fetch('/appointments/' + a.id, {
+        method: 'DELETE'
+      });
+      load();
+    };
+
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
+}
+
+load();
+</script>
+
+</body>
+</html>
