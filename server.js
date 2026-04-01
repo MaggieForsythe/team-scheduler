@@ -153,20 +153,12 @@ function generateSchedule() {
         let key = time.toISOString();
 
         let btn = document.createElement("button");
+        btn.type = "button";     
         btn.innerText = time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-       btn.addEventListener("mousedown", () => {
+       btn.onclick = () => {
   toggle(btn, key);
-  isDragging = true;
-});
-
-btn.addEventListener("mouseover", () => {
-  if (isDragging) toggle(btn, key);
-});
-
-btn.addEventListener("mouseup", () => {
-  isDragging = false;
-});
+};
         scheduleDiv.appendChild(btn);
       }
     }
