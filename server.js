@@ -127,8 +127,9 @@ function generateSchedule() {
   scheduleDiv.innerHTML = "";
   selected = [];
 
-  document.body.onmousedown = () => isDragging = true;
-  document.body.onmouseup = () => isDragging = false;
+  document.addEventListener("mouseup", () => {
+  isDragging = false;
+});
 
   for (let i = 0; i < 14; i++) {
     let day = new Date(startDate);
@@ -154,11 +155,18 @@ function generateSchedule() {
         let btn = document.createElement("button");
         btn.innerText = time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-        btn.onmousedown = () => toggle(btn, key);
-        btn.onmouseover = () => {
-          if (isDragging) toggle(btn, key);
-        };
+       btn.addEventListener("mousedown", () => {
+  toggle(btn, key);
+  isDragging = true;
+});
 
+btn.addEventListener("mouseover", () => {
+  if (isDragging) toggle(btn, key);
+});
+
+btn.addEventListener("mouseup", () => {
+  isDragging = false;
+});
         scheduleDiv.appendChild(btn);
       }
     }
