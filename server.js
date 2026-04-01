@@ -61,7 +61,7 @@ app.get("/meeting/:id", (req, res) => {
 
   res.send(`
     <html>
-    <body style="text-align:center; font-family:Arial; padding:20px;">
+    <body style="text-align:center; font-family:Arial; padding:20px; pointer-events:auto;">
 
     <h2>Meeting ID: ${id}</h2>
 
@@ -152,7 +152,7 @@ function generateSchedule() {
 
         let key = time.toISOString();
 
-        let btn = document.createElement("button");
+        <body style="text-align:center; font-family:Arial; padding:20px; pointer-events:auto;">
         btn.type = "button";     
         btn.innerText = time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
