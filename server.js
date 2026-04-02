@@ -24,20 +24,20 @@ let meetings = loadData();
 // HOME
 app.get("/", (req, res) => {
   res.send(`
-    <html>
-      <body style="text-align:center; font-family:Arial; padding:40px;">
-        <h1>Team Scheduler</h1>
-        <button onclick="createMeeting()">Create New Meeting</button>
+  <html>
+  <body style="text-align:center; font-family:Arial; padding:40px;">
+    <h1>Global Team Scheduler</h1>
+    <button onclick="createMeeting()">Create Meeting</button>
 
-        <script>
-          async function createMeeting() {
-            const res = await fetch("/create");
-            const data = await res.json();
-            window.location.href = "/meeting/" + data.id;
-          }
-        </script>
-      </body>
-    </html>
+    <script>
+    async function createMeeting() {
+      const res = await fetch("/create");
+      const data = await res.json();
+      window.location.href = "/meeting/" + data.id;
+    }
+    </script>
+  </body>
+  </html>
   `);
 });
 
@@ -47,7 +47,8 @@ app.get("/create", (req, res) => {
 
   meetings[id] = {
     responses: {},
-    zoom: ""
+    zoom: "",
+    finalTime: ""
   };
 
   saveData(meetings);
@@ -60,179 +61,182 @@ app.get("/meeting/:id", (req, res) => {
 
   res.send(`
 <html>
-<body style="text-align:center; font-family:Arial; padding:20px;">
+<body style="font-family:Arial; text-align:center;">
 
 <style>
-button {
-  margin: 3px;
-  padding: 6px;
-}
-.selected {
-  background: green;
-  color: white;
-}
+button { margin:2px; padding:5px; }
+.selected { background:green; color:white; }
 </style>
 
 <h2>Meeting ID: ${id}</h2>
 
-<button onclick="copyLink()">Copy Meeting Link</button>
-<div id="linkDisplay"></div>
+<div>Your Timezone: <span id="tz"></span></div>
+
+<button onclick="copyLink()">Copy Link</button>
+<div id="link"></div>
 
 <br><br>
 
-<input id="zoom" placeholder="Paste Zoom link" />
+<input id="zoom" placeholder="Zoom link">
 <button onclick="saveZoom()">Save Zoom</button>
+<div id="zoomDisplay"></div>
 
 <br><br>
 
-<input id="name" placeholder="Your name" />
-<br><br>
-
-<input type="date" id="startDate" />
-<br><br>
-
-<button onclick="generateSchedule()">Generate Schedule</button>
+<input id="name" placeholder="Your name">
+<input type="date" id="startDate">
+<button onclick="generate()">Generate Schedule</button>
 
 <div id="schedule"></div>
 
 <br>
-<button onclick="submitAvailability()">Submit Availability</button>
+<button onclick="submit()">Submit Availability</button>
+
+<h3>Final Meeting Time</h3>
+<div id="final"></div>
 
 <h3>Best Times</h3>
 <div id="results"></div>
 
 <script>
-const meetingId = "${id}";
+const id = "${id}";
 let selected = [];
+let dragging = false;
 
-// COPY LINK
+// timezone
+const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+document.getElementById("tz").innerText = tz;
+
+// copy link
 function copyLink() {
-  const link = window.location.origin + "/meeting/" + meetingId;
+  const link = window.location.href;
   navigator.clipboard.writeText(link);
-  document.getElementById("linkDisplay").innerText = link;
+  document.getElementById("link").innerText = link;
 }
 
-// SAVE ZOOM
+// zoom
 async function saveZoom() {
   const zoom = document.getElementById("zoom").value;
 
-  await fetch("/zoom/" + meetingId, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
+  await fetch("/zoom/" + id, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
     body: JSON.stringify({zoom})
   });
 
-  alert("Zoom saved");
+  load();
 }
 
-// GENERATE SCHEDULE
-function generateSchedule() {
-  const startDate = new Date(document.getElementById("startDate").value);
-  const scheduleDiv = document.getElementById("schedule");
+// generate schedule
+function generate() {
+  const start = new Date(document.getElementById("startDate").value);
+  const div = document.getElementById("schedule");
 
-  scheduleDiv.innerHTML = "";
+  div.innerHTML = "";
   selected = [];
 
-  for (let i = 0; i < 14; i++) {
-    let day = new Date(startDate);
-    day.setDate(startDate.getDate() + i);
+  document.onmousedown = () => dragging = true;
+  document.onmouseup = () => dragging = false;
 
-    let header = document.createElement("h4");
-    header.innerText = day.toDateString();
-    scheduleDiv.appendChild(header);
+  for (let d=0; d<14; d++) {
+    let day = new Date(start);
+    day.setDate(start.getDate()+d);
 
-    for (let hour = 8; hour <= 21; hour++) {
-      for (let min of [0,30]) {
+    let h = document.createElement("h4");
+    h.innerText = day.toDateString();
+    div.appendChild(h);
 
-        let time = new Date(
-          day.getFullYear(),
-          day.getMonth(),
-          day.getDate(),
-          hour,
-          min
-        );
+    for (let hr=8; hr<=21; hr++) {
+      for (let m of [0,30]) {
 
-        let key = time.toISOString();
+        let t = new Date(day.getFullYear(),day.getMonth(),day.getDate(),hr,m);
+        let key = t.toISOString();
 
-        let btn = document.createElement("button");
-        btn.type = "button";
+        let b = document.createElement("button");
+        b.innerText = t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 
-        btn.innerText = time.toLocaleTimeString([], {
-          hour:'2-digit',
-          minute:'2-digit'
-        });
+        b.onmousedown = () => toggle(b,key);
+        b.onmouseover = () => { if(dragging) toggle(b,key); };
 
-        btn.onclick = function() {
-          if (btn.classList.contains("selected")) {
-            btn.classList.remove("selected");
-            selected = selected.filter(t => t !== key);
-          } else {
-            btn.classList.add("selected");
-            selected.push(key);
-          }
-        };
-
-        scheduleDiv.appendChild(btn);
+        div.appendChild(b);
       }
     }
   }
 }
 
-// SUBMIT AVAILABILITY
-async function submitAvailability() {
-  const name = document.getElementById("name").value;
-
-  await fetch("/submit/" + meetingId, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({name, times: selected})
-  });
-
-  loadResults();
+function toggle(b,k) {
+  if (b.classList.contains("selected")) {
+    b.classList.remove("selected");
+    selected = selected.filter(x=>x!==k);
+  } else {
+    b.classList.add("selected");
+    selected.push(k);
+  }
 }
 
-// LOAD RESULTS
-async function loadResults() {
-  const res = await fetch("/results/" + meetingId);
+// submit
+async function submit() {
+  const name = document.getElementById("name").value;
+
+  await fetch("/submit/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({name,times:selected,tz})
+  });
+
+  load();
+}
+
+// load everything
+async function load() {
+  const res = await fetch("/results/"+id);
   const data = await res.json();
 
+  document.getElementById("zoomDisplay").innerText = "Zoom: " + (data.zoom || "");
+
+  // final time
+  if (data.finalTime) {
+    document.getElementById("final").innerText =
+      new Date(data.finalTime).toLocaleString();
+  }
+
+  // best times
   const div = document.getElementById("results");
   div.innerHTML = "";
 
-  const totalPeople = data.totalPeople;
-
   const h1 = document.createElement("h4");
-  h1.innerText = "Times everyone is available:";
+  h1.innerText = "Everyone available:";
   div.appendChild(h1);
 
-  if (data.perfectMatches.length === 0) {
-    const p = document.createElement("p");
-    p.innerText = "No perfect matches";
+  data.perfect.forEach(t=>{
+    let p = document.createElement("p");
+    p.innerText = new Date(t[0]).toLocaleString();
     div.appendChild(p);
-  } else {
-    data.perfectMatches.forEach(item => {
-      const d = new Date(item[0]);
-      const p = document.createElement("p");
-      p.innerText = d.toLocaleString();
-      div.appendChild(p);
-    });
-  }
+  });
 
   const h2 = document.createElement("h4");
-  h2.innerText = "Best available times:";
+  h2.innerText = "Best options:";
   div.appendChild(h2);
 
-  data.bestMatches.forEach(item => {
-    const d = new Date(item[0]);
-    const count = item[1];
+  data.best.forEach(t=>{
+    let p = document.createElement("p");
+    p.innerText = new Date(t[0]).toLocaleString() + " ("+t[1]+")";
 
-    const p = document.createElement("p");
-    p.innerText = d.toLocaleString() + " (" + count + "/" + totalPeople + ")";
+    // leader click to set final
+    p.onclick = async ()=>{
+      await fetch("/final/"+id,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({time:t[0]})
+      });
+      load();
+    };
+
     div.appendChild(p);
   });
 }
 
-loadResults();
+load();
 </script>
 
 </body>
@@ -240,60 +244,54 @@ loadResults();
   `);
 });
 
-// SAVE AVAILABILITY
-app.post("/submit/:id", (req, res) => {
+// SAVE
+app.post("/submit/:id", (req,res)=>{
+  const {name,times,tz} = req.body;
   const id = req.params.id;
-  const { name, times } = req.body;
 
-  if (!meetings[id]) meetings[id] = { responses: {} };
-
-  meetings[id].responses[name] = times;
+  meetings[id].responses[name] = {times,tz};
   saveData(meetings);
 
-  res.json({ ok: true });
+  res.json({ok:true});
 });
 
-// SAVE ZOOM
-app.post("/zoom/:id", (req, res) => {
-  const id = req.params.id;
-  const { zoom } = req.body;
-
-  if (!meetings[id]) meetings[id] = {};
-  meetings[id].zoom = zoom;
-
+// ZOOM
+app.post("/zoom/:id",(req,res)=>{
+  meetings[req.params.id].zoom = req.body.zoom;
   saveData(meetings);
-  res.json({ ok: true });
+  res.json({ok:true});
+});
+
+// FINAL TIME
+app.post("/final/:id",(req,res)=>{
+  meetings[req.params.id].finalTime = req.body.time;
+  saveData(meetings);
+  res.json({ok:true});
 });
 
 // RESULTS
-app.get("/results/:id", (req, res) => {
-  const id = req.params.id;
-  const meeting = meetings[id] || { responses: {} };
+app.get("/results/:id",(req,res)=>{
+  const meeting = meetings[req.params.id];
 
   const counts = {};
-  const totalPeople = Object.keys(meeting.responses).length;
+  const total = Object.keys(meeting.responses).length;
 
-  Object.values(meeting.responses).forEach(times => {
-    times.forEach(t => {
-      counts[t] = (counts[t] || 0) + 1;
+  Object.values(meeting.responses).forEach(r=>{
+    r.times.forEach(t=>{
+      counts[t]=(counts[t]||0)+1;
     });
   });
 
-  const perfectMatches = Object.entries(counts)
-    .filter(([time, count]) => count === totalPeople);
-
-  const bestMatches = Object.entries(counts)
-    .sort((a,b) => b[1]-a[1])
-    .slice(0,5);
+  const perfect = Object.entries(counts).filter(([t,c])=>c===total);
+  const best = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
   res.json({
-    totalPeople,
-    perfectMatches,
-    bestMatches
+    zoom: meeting.zoom,
+    finalTime: meeting.finalTime,
+    perfect,
+    best
   });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+app.listen(PORT, ()=>console.log("Running"));
