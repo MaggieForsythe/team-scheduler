@@ -194,7 +194,36 @@ async function submit(){
 }
 
 // LOAD
-async function load(){
+app.get("/results/:id",(req,res)=>{
+  const m = meetings[req.params.id] || {responses:{}};
+
+  const map = {};
+  const totalUsers = Object.keys(m.responses).length;
+
+  Object.entries(m.responses).forEach(([name,times])=>{
+    times.forEach(t=>{
+      if(!map[t]) map[t] = {count:0, names:[]};
+      map[t].count++;
+      map[t].names.push(name);
+    });
+  });
+
+  // ONLY TIMES WHERE EVERYONE IS AVAILABLE
+  const perfect = Object.entries(map)
+    .filter(([time,data]) => data.count === totalUsers && totalUsers > 0)
+    .map(([time,data]) => ({
+      time,
+      names:data.names
+    }))
+    .sort((a,b)=> new Date(a.time) - new Date(b.time))
+    .slice(0,3); // TOP 3 ONLY
+
+  res.json({
+    zoom: m.zoom,
+    finalTime: m.finalTime,
+    perfect
+  });
+});
   const r=await fetch("/results/"+id);
   const d=await r.json();
 
@@ -291,7 +320,36 @@ app.post("/final/:id",(req,res)=>{
 });
 
 // RESULTS WITH NAMES
-app.get("/results/:id",(req,res)=>{
+
+  const m = meetings[req.params.id] || {responses:{}};
+
+  const map = {};
+  const totalUsers = Object.keys(m.responses).length;
+
+  Object.entries(m.responses).forEach(([name,times])=>{
+    times.forEach(t=>{
+      if(!map[t]) map[t] = {count:0, names:[]};
+      map[t].count++;
+      map[t].names.push(name);
+    });
+  });
+
+  // ONLY TIMES WHERE EVERYONE IS AVAILABLE
+  const perfect = Object.entries(map)
+    .filter(([time,data]) => data.count === totalUsers && totalUsers > 0)
+    .map(([time,data]) => ({
+      time,
+      names:data.names
+    }))
+    .sort((a,b)=> new Date(a.time) - new Date(b.time))
+    .slice(0,3); // TOP 3 ONLY
+
+  res.json({
+    zoom: m.zoom,
+    finalTime: m.finalTime,
+    perfect
+  });
+});
   const m=meetings[req.params.id]||{responses:{}};
 
   const map={};
