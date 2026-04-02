@@ -65,8 +65,16 @@ const id = req.params.id;
 res.send(`
 <html>
 <body style="font-family:Arial;text-align:center;">
-
-<h2>Team Scheduler</h2>
+<style>
+button {
+  margin: 2px;
+  padding: 6px;
+}
+.selected {
+  background: green !important;
+  color: white;
+}
+</style>
 
 <div>Your timezone: <span id="tz"></span></div>
 
@@ -183,8 +191,10 @@ function generate(){
         let b = document.createElement("button");
         b.innerText = t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 
-        b.onmousedown = () => toggle(b,key);
-        b.onmouseover = () => { if(dragging) toggle(b,key); };
+       b.onclick = () => toggle(b,key);
+b.onmousedown = () => dragging = true;
+b.onmouseup = () => dragging = false;
+b.onmouseover = () => { if(dragging) toggle(b,key); };
 
         div.appendChild(b);
       }
@@ -194,6 +204,15 @@ function generate(){
 
 // TOGGLE
 function toggle(b,k){
+  if(locked) return;
+
+  if(b.classList.contains("selected")){
+    b.classList.remove("selected");
+    selected = selected.filter(x => x !== k);
+  } else {
+    b.classList.add("selected");
+    if(!selected.includes(k)){
+     
   if(locked) return;
 
   if(b.classList.contains("selected")){
