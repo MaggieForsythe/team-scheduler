@@ -46,7 +46,8 @@ app.get("/create", (req, res) => {
   const id = uuid().slice(0,6);
 
   meetings[id] = {
-    responses: {}
+    responses: {},
+    zoom: ""
   };
 
   saveData(meetings);
@@ -58,41 +59,69 @@ app.get("/meeting/:id", (req, res) => {
   const id = req.params.id;
 
   res.send(`
-    <html>
-    <body style="text-align:center; font-family:Arial; padding:20px;">
+<html>
+<body style="text-align:center; font-family:Arial; padding:20px;">
 
-    <style>
-      button {
-        margin: 3px;
-        padding: 6px;
-      }
-      .selected {
-        background: green;
-        color: white;
-      }
-    </style>
+<style>
+button {
+  margin: 3px;
+  padding: 6px;
+}
+.selected {
+  background: green;
+  color: white;
+}
+</style>
 
-    <h2>Meeting ID: ${id}</h2>
+<h2>Meeting ID: ${id}</h2>
 
-    <input id="name" placeholder="Your name" />
-    <br><br>
+<button onclick="copyLink()">Copy Meeting Link</button>
+<div id="linkDisplay"></div>
 
-    <input type="date" id="startDate" />
-    <br><br>
+<br><br>
 
-    <button onclick="generateSchedule()">Generate Schedule</button>
+<input id="zoom" placeholder="Paste Zoom link" />
+<button onclick="saveZoom()">Save Zoom</button>
 
-    <div id="schedule"></div>
+<br><br>
 
-    <br>
-    <button onclick="submitAvailability()">Submit Availability</button>
+<input id="name" placeholder="Your name" />
+<br><br>
 
-    <h3>Best Times</h3>
-    <div id="results"></div>
+<input type="date" id="startDate" />
+<br><br>
+
+<button onclick="generateSchedule()">Generate Schedule</button>
+
+<div id="schedule"></div>
+
+<br>
+<button onclick="submitAvailability()">Submit Availability</button>
+
+<h3>Best Times</h3>
+<div id="results"></div>
 
 <script>
 const meetingId = "${id}";
 let selected = [];
+
+function copyLink() {
+  const link = window.location.origin + "/meeting/" + meetingId;
+  navigator.clipboard.writeText(link);
+  document.getElementById("linkDisplay").innerText = link;
+}
+
+async function saveZoom() {
+  const zoom = document.getElementById("zoom").value;
+
+  await fetch("/zoom/" + meetingId, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({zoom})
+  });
+
+  alert("Zoom saved");
+}
 
 function generateSchedule() {
   const startDate = new Date(document.getElementById("startDate").value);
@@ -162,19 +191,28 @@ async function loadResults() {
   const res = await fetch("/results/" + meetingId);
   const data = await res.json();
 
-  document.getElementById("results").innerText =
-    JSON.stringify(data, null, 2);
+  const div = document.getElementById("results");
+  div.innerHTML = "";
+
+  data.forEach(item => {
+    const d = new Date(item[0]);
+    const count = item[1];
+
+    const p = document.createElement("p");
+    p.innerText = d.toLocaleString() + " (" + count + " people)";
+    div.appendChild(p);
+  });
 }
 
 loadResults();
 </script>
 
-    </body>
-    </html>
+</body>
+</html>
   `);
 });
 
-// SAVE
+// SAVE AVAILABILITY
 app.post("/submit/:id", (req, res) => {
   const id = req.params.id;
   const { name, times } = req.body;
@@ -184,6 +222,18 @@ app.post("/submit/:id", (req, res) => {
   meetings[id].responses[name] = times;
   saveData(meetings);
 
+  res.json({ ok: true });
+});
+
+// SAVE ZOOM
+app.post("/zoom/:id", (req, res) => {
+  const id = req.params.id;
+  const { zoom } = req.body;
+
+  if (!meetings[id]) meetings[id] = {};
+  meetings[id].zoom = zoom;
+
+  saveData(meetings);
   res.json({ ok: true });
 });
 
