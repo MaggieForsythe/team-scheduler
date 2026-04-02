@@ -18,30 +18,57 @@ function saveData(data) {
 
 let meetings = loadData();
 
-// HOME
+// HOME PAGE
 app.get("/", (req, res) => {
   res.send(`
   <html>
   <body style="text-align:center;font-family:Arial;padding:40px;">
+
     <h1>Team Scheduler</h1>
-    <button onclick="createMeeting()">Create Meeting</button>
+
+    <button onclick="createMeeting()">Create New Meeting</button>
+
+    <div id="output" style="margin-top:20px;"></div>
 
     <script>
     async function createMeeting(){
       const r = await fetch('/create');
       const d = await r.json();
 
-      alert("Leader Code: " + d.leaderCode);
+      const leaderLink =
+        window.location.origin + "/meeting/" + d.id + "?leader=" + d.leaderCode;
 
-      window.location.href = '/meeting/' + d.id + "?leader=" + d.leaderCode;
+      const teamLink =
+        window.location.origin + "/meeting/" + d.id;
+
+      document.getElementById("output").innerHTML = \`
+        <h3>Meeting Created</h3>
+
+        <p><strong>Leader Link (keep private)</strong><br>
+        <input value="\${leaderLink}" style="width:90%"></p>
+
+        <p><strong>Team Link (send this)</strong><br>
+        <input value="\${teamLink}" style="width:90%"></p>
+
+        <button onclick="navigator.clipboard.writeText('\${teamLink}')">
+          Copy Team Link
+        </button>
+
+        <br><br>
+
+        <button onclick="window.location.href='\${leaderLink}'">
+          Go to Leader Page
+        </button>
+      \`;
     }
     </script>
+
   </body>
   </html>
   `);
 });
 
-// CREATE
+// CREATE MEETING
 app.get("/create",(req,res)=>{
   const id = uuid().slice(0,6);
   const leaderCode = Math.random().toString(36).substring(2,6);
@@ -82,7 +109,7 @@ button { margin:2px; padding:6px; }
 <br>
 <button onclick="submit()">Submit Availability</button>
 
-<h3>Top 3 Times</h3>
+<h3>Top 3 Times (Everyone Available)</h3>
 <div id="results"></div>
 
 <h3>Final Meeting</h3>
@@ -205,11 +232,17 @@ async function load(){
   const div=document.getElementById("results");
   div.innerHTML="";
 
+  if(d.perfect.length===0){
+    div.innerHTML="No full match yet";
+    return;
+  }
+
   d.perfect.forEach(t=>{
     let p=document.createElement("p");
     p.innerText=new Date(t.time).toLocaleString();
 
     if(isLeader && !locked){
+      p.style.cursor="pointer";
       p.onclick=async()=>{
         await fetch("/final/"+id,{
           method:"POST",
@@ -224,6 +257,7 @@ async function load(){
   });
 }
 
+// SAVE ZOOM
 async function saveZoom(){
   if(!isLeader) return;
 
