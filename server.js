@@ -194,7 +194,8 @@ async function loadResults() {
   const div = document.getElementById("results");
   div.innerHTML = "";
 
-  // PERFECT matches
+  const totalPeople = data.totalPeople;
+
   const h1 = document.createElement("h4");
   h1.innerText = "Times everyone is available:";
   div.appendChild(h1);
@@ -212,7 +213,6 @@ async function loadResults() {
     });
   }
 
-  // BEST matches
   const h2 = document.createElement("h4");
   h2.innerText = "Best available times:";
   div.appendChild(h2);
@@ -222,22 +222,7 @@ async function loadResults() {
     const count = item[1];
 
     const p = document.createElement("p");
-    p.innerText = d.toLocaleString() + " (" + count + "/" + data.totalPeople + ")";
-    div.appendChild(p);
-  });
-}
-  const res = await fetch("/results/" + meetingId);
-  const data = await res.json();
-
-  const div = document.getElementById("results");
-  div.innerHTML = "";
-
-  data.forEach(item => {
-    const d = new Date(item[0]);
-    const count = item[1];
-
-    const p = document.createElement("p");
-    p.innerText = d.toLocaleString() + " (" + count + " people)";
+    p.innerText = d.toLocaleString() + " (" + count + "/" + totalPeople + ")";
     div.appendChild(p);
   });
 }
@@ -281,6 +266,7 @@ app.get("/results/:id", (req, res) => {
   const meeting = meetings[id] || { responses: {} };
 
   const counts = {};
+  const totalPeople = Object.keys(meeting.responses).length;
 
   Object.values(meeting.responses).forEach(times => {
     times.forEach(t => {
@@ -288,22 +274,18 @@ app.get("/results/:id", (req, res) => {
     });
   });
 
-  const totalPeople = Object.keys(meeting.responses).length;
+  const perfectMatches = Object.entries(counts)
+    .filter(([time, count]) => count === totalPeople);
 
-// times where EVERYONE is available
-const perfectMatches = Object.entries(counts)
-  .filter(([time, count]) => count === totalPeople);
+  const bestMatches = Object.entries(counts)
+    .sort((a,b) => b[1]-a[1])
+    .slice(0,5);
 
-// fallback: best available if no perfect match
-const bestMatches = Object.entries(counts)
-  .sort((a,b) => b[1]-a[1])
-  .slice(0,5);
-
-res.json({
-  totalPeople,
-  perfectMatches,
-  bestMatches
-});
+  res.json({
+    totalPeople,
+    perfectMatches,
+    bestMatches
+  });
 });
 
 const PORT = process.env.PORT || 3000;
