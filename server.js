@@ -54,7 +54,6 @@ app.get("/create",(req,res)=>{
   };
 
   saveData(meetings);
-
   res.json({id, leaderCode});
 });
 
@@ -65,136 +64,85 @@ const id = req.params.id;
 res.send(`
 <html>
 <body style="font-family:Arial;text-align:center;">
+
 <style>
-button {
-  margin: 2px;
-  padding: 6px;
-}
-.selected {
-  background: green !important;
-  color: white;
-}
+button { margin:2px; padding:6px; }
+.selected { background:green; color:white; }
 </style>
 
-<div>Your timezone: <span id="tz"></span></div>
+<h2>Team Scheduler</h2>
 
-<br>
-
-<button onclick="copyLink()">Copy Link</button>
-<button onclick="shareLink()">Share</button>
-
-<div id="link"></div>
-<div id="share"></div>
-
-<br><br>
-
-<input id="zoom" placeholder="Zoom link">
-<button id="zoomBtn" onclick="saveZoom()">Save Zoom</button>
-
-<div id="zoomDisplay"></div>
-
-<br><br>
-
-<input id="name" placeholder="Your name">
-<input type="date" id="startDate">
-
-<br><br>
+<input id="name" placeholder="Your name"><br><br>
+<input type="date" id="startDate"><br><br>
 
 <button onclick="generate()">Generate Schedule</button>
 
 <div id="schedule"></div>
 
 <br>
-
 <button onclick="submit()">Submit Availability</button>
 
-<h2 style="color:green;">FINAL MEETING</h2>
-<div id="final"></div>
-
-<button id="calBtn" style="display:none;">Add to Calendar</button>
-
-<h3>Top 3 Best Times (Everyone Available)</h3>
+<h3>Top 3 Times</h3>
 <div id="results"></div>
 
-<script>
-const id = "${id}";
-let selected = [];
-let dragging = false;
-let locked = false;
+<h3>Final Meeting</h3>
+<div id="final"></div>
 
-// leader detection
+<input id="zoom" placeholder="Zoom link">
+<button id="zoomBtn" onclick="saveZoom()">Save Zoom</button>
+
+<div id="zoomDisplay"></div>
+
+<script>
+const id="${id}";
+let selected=[];
+let dragging=false;
+let locked=false;
+
 const params = new URLSearchParams(window.location.search);
 const leaderCode = params.get("leader");
-let isLeader = false;
+let isLeader=false;
 
-document.getElementById("tz").innerText =
-  Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-// COPY LINK
-function copyLink(){
-  const l = window.location.href;
-  navigator.clipboard.writeText(l);
-  document.getElementById("link").innerText = l;
-}
-
-// SHARE
-function shareLink(){
-  const l = window.location.href;
-  const msg = "Please add availability:\\n" + l;
-  document.getElementById("share").innerText = msg;
-}
-
-// SAVE ZOOM
-async function saveZoom(){
-  if(!isLeader) return;
-
-  const z = document.getElementById("zoom").value;
-
-  await fetch("/zoom/"+id,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({zoom:z})
-  });
-
-  load();
-}
-
-// GENERATE CALENDAR
+// GENERATE
 function generate(){
   if(locked){
     alert("Schedule locked");
     return;
   }
 
-  const start = new Date(document.getElementById("startDate").value);
-  const div = document.getElementById("schedule");
+  const startVal=document.getElementById("startDate").value;
+  if(!startVal){
+    alert("Select a date");
+    return;
+  }
 
-  div.innerHTML = "";
-  selected = [];
+  const start=new Date(startVal);
+  const div=document.getElementById("schedule");
 
-  document.onmousedown = () => dragging = true;
-  document.onmouseup = () => dragging = false;
+  div.innerHTML="";
+  selected=[];
 
-  for(let d=0; d<14; d++){
-    let day = new Date(start);
+  for(let d=0;d<14;d++){
+    let day=new Date(start);
     day.setDate(start.getDate()+d);
 
-    let h = document.createElement("h4");
-    h.innerText = day.toDateString();
+    let h=document.createElement("h4");
+    h.innerText=day.toDateString();
     div.appendChild(h);
 
-    for(let hr=8; hr<=21; hr++){
+    for(let hr=8;hr<=21;hr++){
       for(let m of [0,30]){
-        let t = new Date(day.getFullYear(),day.getMonth(),day.getDate(),hr,m);
-        let key = t.toISOString();
+        let t=new Date(day.getFullYear(),day.getMonth(),day.getDate(),hr,m);
+        let key=t.toISOString();
 
-        let b = document.createElement("button");
-        b.innerText = t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        let b=document.createElement("button");
+        b.innerText=t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 
-       b.onclick = () => toggle(b,key);
-b.onmousedown = () => dragging = true;
-b.onmouseup = () => dragging = false;
-b.onmouseover = () => { if(dragging) toggle(b,key); };
+        b.onclick=()=>toggle(b,key);
+
+        b.onmousedown=()=>dragging=true;
+        b.onmouseup=()=>dragging=false;
+        b.onmouseover=()=>{ if(dragging) toggle(b,key); };
 
         div.appendChild(b);
       }
@@ -208,114 +156,61 @@ function toggle(b,k){
 
   if(b.classList.contains("selected")){
     b.classList.remove("selected");
-    selected = selected.filter(x => x !== k);
+    selected=selected.filter(x=>x!==k);
   } else {
     b.classList.add("selected");
-    if(!selected.includes(k)){
-     
-  if(locked) return;
-
-  if(b.classList.contains("selected")){
-    b.classList.remove("selected");
-    selected = selected.filter(x=>x!==k);
-  } else {
-    b.classList.add("selected");
-    selected.push(k);
+    if(!selected.includes(k)) selected.push(k);
   }
 }
 
 // SUBMIT
 async function submit(){
-  const name = document.getElementById("name").value.trim();
+  const name=document.getElementById("name").value.trim();
 
-  if(!name){
-    alert("Enter your name");
-    return;
-  }
-
-  if(selected.length === 0){
-    alert("Select at least one time");
-    return;
-  }
+  if(!name){ alert("Enter name"); return; }
+  if(selected.length===0){ alert("Select times"); return; }
 
   await fetch("/submit/"+id,{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({name, times:selected})
+    body:JSON.stringify({name,times:selected})
   });
 
   alert("Submitted!");
   load();
 }
 
-// LOAD DATA
+// LOAD
 async function load(){
-  const r = await fetch("/results/"+id);
-  const d = await r.json();
+  const r=await fetch("/results/"+id);
+  const d=await r.json();
 
-  if(d.leaderCode === leaderCode){
-    isLeader = true;
-  }
+  if(d.leaderCode===leaderCode) isLeader=true;
+  if(d.finalTime) locked=true;
 
-  if(d.finalTime){
-    locked = true;
-  }
-
-  // hide zoom for non leader
   if(!isLeader){
-    document.getElementById("zoomBtn").style.display = "none";
+    document.getElementById("zoomBtn").style.display="none";
   }
 
-  // zoom display
   if(d.zoom){
-    document.getElementById("zoomDisplay").innerHTML =
-      '<br><a href="'+d.zoom+'" target="_blank">👉 Join Zoom</a>';
+    document.getElementById("zoomDisplay").innerHTML=
+      '<a href="'+d.zoom+'" target="_blank">Join Zoom</a>';
   }
 
-  // final meeting
   if(d.finalTime){
-    const dt = new Date(d.finalTime);
-
-    document.getElementById("final").innerHTML =
-      "<h3>FINAL TIME</h3>" + dt.toLocaleString();
-
-    const btn = document.getElementById("calBtn");
-    btn.style.display = "inline-block";
-
-    btn.onclick = ()=>{
-      const end = new Date(dt.getTime()+3600000);
-
-      const url = "https://calendar.google.com/calendar/render?action=TEMPLATE"
-      +"&text=Meeting"
-      +"&dates="
-      +dt.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z/"
-      +end.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
-
-      window.open(url);
-    };
+    document.getElementById("final").innerText=
+      new Date(d.finalTime).toLocaleString();
   }
 
-  // results
-  const div = document.getElementById("results");
-  div.innerHTML = "";
-
-  if(d.perfect.length === 0){
-    div.innerHTML = "No full match yet";
-    return;
-  }
+  const div=document.getElementById("results");
+  div.innerHTML="";
 
   d.perfect.forEach(t=>{
-    let p = document.createElement("p");
-
-    p.style.border = "1px solid #ccc";
-    p.style.padding = "10px";
-
-    p.innerText = new Date(t.time).toLocaleString();
+    let p=document.createElement("p");
+    p.innerText=new Date(t.time).toLocaleString();
 
     if(isLeader && !locked){
-      p.style.cursor = "pointer";
-
-      p.onclick = async ()=>{
+      p.onclick=async()=>{
         await fetch("/final/"+id,{
           method:"POST",
           headers:{"Content-Type":"application/json"},
@@ -329,6 +224,20 @@ async function load(){
   });
 }
 
+async function saveZoom(){
+  if(!isLeader) return;
+
+  const z=document.getElementById("zoom").value;
+
+  await fetch("/zoom/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({zoom:z})
+  });
+
+  load();
+}
+
 load();
 </script>
 
@@ -337,55 +246,51 @@ load();
 `);
 });
 
-// SUBMIT
+// BACKEND
 app.post("/submit/:id",(req,res)=>{
-  const {name,times} = req.body;
-  meetings[req.params.id].responses[name] = times;
+  const {name,times}=req.body;
+  meetings[req.params.id].responses[name]=times;
   saveData(meetings);
   res.json({ok:true});
 });
 
-// ZOOM
 app.post("/zoom/:id",(req,res)=>{
-  meetings[req.params.id].zoom = req.body.zoom;
+  meetings[req.params.id].zoom=req.body.zoom;
   saveData(meetings);
   res.json({ok:true});
 });
 
-// FINAL
 app.post("/final/:id",(req,res)=>{
-  meetings[req.params.id].finalTime = req.body.time;
+  meetings[req.params.id].finalTime=req.body.time;
   saveData(meetings);
   res.json({ok:true});
 });
 
-// RESULTS
 app.get("/results/:id",(req,res)=>{
-  const m = meetings[req.params.id];
+  const m=meetings[req.params.id];
+  const map={};
+  const total=Object.keys(m.responses).length;
 
-  const map = {};
-  const total = Object.keys(m.responses).length;
-
-  Object.entries(m.responses).forEach(([name,times])=>{
+  Object.values(m.responses).forEach(times=>{
     times.forEach(t=>{
-      if(!map[t]) map[t] = 0;
+      if(!map[t]) map[t]=0;
       map[t]++;
     });
   });
 
-  const perfect = Object.entries(map)
-    .filter(([t,c]) => c === total && total > 0)
-    .map(([t]) => ({time:t}))
-    .sort((a,b)=> new Date(a.time)-new Date(b.time))
+  const perfect=Object.entries(map)
+    .filter(([t,c])=>c===total && total>0)
+    .map(([t])=>({time:t}))
+    .sort((a,b)=>new Date(a.time)-new Date(b.time))
     .slice(0,3);
 
   res.json({
-    zoom: m.zoom,
-    finalTime: m.finalTime,
-    leaderCode: m.leaderCode,
+    zoom:m.zoom,
+    finalTime:m.finalTime,
+    leaderCode:m.leaderCode,
     perfect
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, ()=>console.log("Running"));
+const PORT=process.env.PORT||3000;
+app.listen(PORT,()=>console.log("Running"));
