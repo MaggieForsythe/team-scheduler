@@ -194,6 +194,44 @@ async function loadResults() {
   const div = document.getElementById("results");
   div.innerHTML = "";
 
+  // PERFECT matches
+  const h1 = document.createElement("h4");
+  h1.innerText = "Times everyone is available:";
+  div.appendChild(h1);
+
+  if (data.perfectMatches.length === 0) {
+    const p = document.createElement("p");
+    p.innerText = "No perfect matches";
+    div.appendChild(p);
+  } else {
+    data.perfectMatches.forEach(item => {
+      const d = new Date(item[0]);
+      const p = document.createElement("p");
+      p.innerText = d.toLocaleString();
+      div.appendChild(p);
+    });
+  }
+
+  // BEST matches
+  const h2 = document.createElement("h4");
+  h2.innerText = "Best available times:";
+  div.appendChild(h2);
+
+  data.bestMatches.forEach(item => {
+    const d = new Date(item[0]);
+    const count = item[1];
+
+    const p = document.createElement("p");
+    p.innerText = d.toLocaleString() + " (" + count + "/" + data.totalPeople + ")";
+    div.appendChild(p);
+  });
+}
+  const res = await fetch("/results/" + meetingId);
+  const data = await res.json();
+
+  const div = document.getElementById("results");
+  div.innerHTML = "";
+
   data.forEach(item => {
     const d = new Date(item[0]);
     const count = item[1];
@@ -250,11 +288,22 @@ app.get("/results/:id", (req, res) => {
     });
   });
 
-  const sorted = Object.entries(counts)
-    .sort((a,b) => b[1]-a[1])
-    .slice(0,3);
+  const totalPeople = Object.keys(meeting.responses).length;
 
-  res.json(sorted);
+// times where EVERYONE is available
+const perfectMatches = Object.entries(counts)
+  .filter(([time, count]) => count === totalPeople);
+
+// fallback: best available if no perfect match
+const bestMatches = Object.entries(counts)
+  .sort((a,b) => b[1]-a[1])
+  .slice(0,5);
+
+res.json({
+  totalPeople,
+  perfectMatches,
+  bestMatches
+});
 });
 
 const PORT = process.env.PORT || 3000;
