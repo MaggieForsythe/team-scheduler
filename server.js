@@ -105,12 +105,14 @@ button {
 const meetingId = "${id}";
 let selected = [];
 
+// COPY LINK
 function copyLink() {
   const link = window.location.origin + "/meeting/" + meetingId;
   navigator.clipboard.writeText(link);
   document.getElementById("linkDisplay").innerText = link;
 }
 
+// SAVE ZOOM
 async function saveZoom() {
   const zoom = document.getElementById("zoom").value;
 
@@ -123,6 +125,7 @@ async function saveZoom() {
   alert("Zoom saved");
 }
 
+// GENERATE SCHEDULE
 function generateSchedule() {
   const startDate = new Date(document.getElementById("startDate").value);
   const scheduleDiv = document.getElementById("schedule");
@@ -175,6 +178,7 @@ function generateSchedule() {
   }
 }
 
+// SUBMIT AVAILABILITY
 async function submitAvailability() {
   const name = document.getElementById("name").value;
 
@@ -187,6 +191,7 @@ async function submitAvailability() {
   loadResults();
 }
 
+// LOAD RESULTS
 async function loadResults() {
   const res = await fetch("/results/" + meetingId);
   const data = await res.json();
