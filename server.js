@@ -8,11 +8,8 @@ app.use(express.json());
 const DATA_FILE = "data.json";
 
 function loadData() {
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE));
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(fs.readFileSync(DATA_FILE)); }
+  catch { return {}; }
 }
 
 function saveData(data) {
@@ -25,15 +22,15 @@ let meetings = loadData();
 app.get("/", (req, res) => {
   res.send(`
   <html>
-  <body style="text-align:center; font-family:Arial; padding:40px;">
-    <h1>Global Team Scheduler</h1>
+  <body style="text-align:center;font-family:Arial;padding:40px;">
+    <h1>Team Scheduler</h1>
     <button onclick="createMeeting()">Create Meeting</button>
 
     <script>
-    async function createMeeting() {
-      const res = await fetch("/create");
-      const data = await res.json();
-      window.location.href = "/meeting/" + data.id;
+    async function createMeeting(){
+      const r = await fetch('/create');
+      const d = await r.json();
+      window.location.href = '/meeting/' + d.id;
     }
     </script>
   </body>
@@ -42,38 +39,34 @@ app.get("/", (req, res) => {
 });
 
 // CREATE
-app.get("/create", (req, res) => {
+app.get("/create",(req,res)=>{
   const id = uuid().slice(0,6);
-
-  meetings[id] = {
-    responses: {},
-    zoom: "",
-    finalTime: ""
-  };
-
+  meetings[id] = { responses:{}, zoom:"", finalTime:"" };
   saveData(meetings);
-  res.json({ id });
+  res.json({id});
 });
 
 // MEETING PAGE
-app.get("/meeting/:id", (req, res) => {
-  const id = req.params.id;
+app.get("/meeting/:id",(req,res)=>{
+const id = req.params.id;
 
-  res.send(`
+res.send(`
 <html>
-<body style="font-family:Arial; text-align:center;">
+<body style="font-family:Arial;text-align:center;">
 
 <style>
-button { margin:2px; padding:5px; }
-.selected { background:green; color:white; }
+button{margin:2px;padding:5px;}
+.selected{background:green;color:white;}
 </style>
 
 <h2>Meeting ID: ${id}</h2>
 
-<div>Your Timezone: <span id="tz"></span></div>
+<div>Your timezone: <span id="tz"></span></div>
 
 <button onclick="copyLink()">Copy Link</button>
+<button onclick="shareLink()">Share</button>
 <div id="link"></div>
+<div id="share"></div>
 
 <br><br>
 
@@ -92,71 +85,81 @@ button { margin:2px; padding:5px; }
 <br>
 <button onclick="submit()">Submit Availability</button>
 
-<h3>Final Meeting Time</h3>
+<h2 style="color:green;">FINAL MEETING</h2>
 <div id="final"></div>
+<button id="calBtn" style="display:none;">Add to Calendar</button>
 
 <h3>Best Times</h3>
 <div id="results"></div>
 
 <script>
-const id = "${id}";
-let selected = [];
-let dragging = false;
+const id="${id}";
+let selected=[];
+let dragging=false;
+window.locked=false;
 
-// timezone
-const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-document.getElementById("tz").innerText = tz;
+document.getElementById("tz").innerText =
+  Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-// copy link
-function copyLink() {
-  const link = window.location.href;
-  navigator.clipboard.writeText(link);
-  document.getElementById("link").innerText = link;
+// COPY
+function copyLink(){
+  const l=window.location.href;
+  navigator.clipboard.writeText(l);
+  document.getElementById("link").innerText=l;
 }
 
-// zoom
-async function saveZoom() {
-  const zoom = document.getElementById("zoom").value;
+// SHARE
+function shareLink(){
+  const l=window.location.href;
+  const msg="Add availability:\\n"+l;
+  document.getElementById("share").innerText=msg;
+  if(navigator.share){
+    navigator.share({title:"Scheduler",text:msg,url:l});
+  }
+}
 
-  await fetch("/zoom/" + id, {
+// ZOOM
+async function saveZoom(){
+  const z=document.getElementById("zoom").value;
+  await fetch("/zoom/"+id,{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({zoom})
+    body:JSON.stringify({zoom:z})
   });
-
   load();
 }
 
-// generate schedule
-function generate() {
-  const start = new Date(document.getElementById("startDate").value);
-  const div = document.getElementById("schedule");
+// GENERATE
+function generate(){
+  if(window.locked){ alert("Schedule locked"); return; }
 
-  div.innerHTML = "";
-  selected = [];
+  const start=new Date(document.getElementById("startDate").value);
+  const div=document.getElementById("schedule");
 
-  document.onmousedown = () => dragging = true;
-  document.onmouseup = () => dragging = false;
+  div.innerHTML="";
+  selected=[];
 
-  for (let d=0; d<14; d++) {
-    let day = new Date(start);
+  document.onmousedown=()=>dragging=true;
+  document.onmouseup=()=>dragging=false;
+
+  for(let d=0;d<14;d++){
+    let day=new Date(start);
     day.setDate(start.getDate()+d);
 
-    let h = document.createElement("h4");
-    h.innerText = day.toDateString();
+    let h=document.createElement("h4");
+    h.innerText=day.toDateString();
     div.appendChild(h);
 
-    for (let hr=8; hr<=21; hr++) {
-      for (let m of [0,30]) {
+    for(let hr=8;hr<=21;hr++){
+      for(let m of [0,30]){
+        let t=new Date(day.getFullYear(),day.getMonth(),day.getDate(),hr,m);
+        let key=t.toISOString();
 
-        let t = new Date(day.getFullYear(),day.getMonth(),day.getDate(),hr,m);
-        let key = t.toISOString();
+        let b=document.createElement("button");
+        b.innerText=t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 
-        let b = document.createElement("button");
-        b.innerText = t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-
-        b.onmousedown = () => toggle(b,key);
-        b.onmouseover = () => { if(dragging) toggle(b,key); };
+        b.onmousedown=()=>toggle(b,key);
+        b.onmouseover=()=>{if(dragging)toggle(b,key);};
 
         div.appendChild(b);
       }
@@ -164,73 +167,91 @@ function generate() {
   }
 }
 
-function toggle(b,k) {
-  if (b.classList.contains("selected")) {
+// TOGGLE
+function toggle(b,k){
+  if(window.locked) return;
+
+  if(b.classList.contains("selected")){
     b.classList.remove("selected");
-    selected = selected.filter(x=>x!==k);
-  } else {
+    selected=selected.filter(x=>x!==k);
+  }else{
     b.classList.add("selected");
     selected.push(k);
   }
 }
 
-// submit
-async function submit() {
-  const name = document.getElementById("name").value;
+// SUBMIT
+async function submit(){
+  const name=document.getElementById("name").value;
 
   await fetch("/submit/"+id,{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({name,times:selected,tz})
+    body:JSON.stringify({name,times:selected})
   });
 
   load();
 }
 
-// load everything
-async function load() {
-  const res = await fetch("/results/"+id);
-  const data = await res.json();
+// LOAD
+async function load(){
+  const r=await fetch("/results/"+id);
+  const d=await r.json();
 
-  document.getElementById("zoomDisplay").innerText = "Zoom: " + (data.zoom || "");
+  // lock if final chosen
+  if(d.finalTime){ window.locked=true; }
 
-  // final time
-  if (data.finalTime) {
-    document.getElementById("final").innerText =
-      new Date(data.finalTime).toLocaleString();
+  // zoom
+  if(d.zoom){
+    document.getElementById("zoomDisplay").innerHTML =
+      '<a href="'+d.zoom+'" target="_blank">Join Zoom</a>';
   }
 
-  // best times
-  const div = document.getElementById("results");
-  div.innerHTML = "";
+  // final
+  if(d.finalTime){
+    const dt=new Date(d.finalTime);
+    document.getElementById("final").innerText=dt.toLocaleString();
 
-  const h1 = document.createElement("h4");
-  h1.innerText = "Everyone available:";
-  div.appendChild(h1);
+    const btn=document.getElementById("calBtn");
+    btn.style.display="inline-block";
 
-  data.perfect.forEach(t=>{
-    let p = document.createElement("p");
-    p.innerText = new Date(t[0]).toLocaleString();
-    div.appendChild(p);
-  });
-
-  const h2 = document.createElement("h4");
-  h2.innerText = "Best options:";
-  div.appendChild(h2);
-
-  data.best.forEach(t=>{
-    let p = document.createElement("p");
-    p.innerText = new Date(t[0]).toLocaleString() + " ("+t[1]+")";
-
-    // leader click to set final
-    p.onclick = async ()=>{
-      await fetch("/final/"+id,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({time:t[0]})
-      });
-      load();
+    btn.onclick=()=>{
+      const end=new Date(dt.getTime()+3600000);
+      const url="https://calendar.google.com/calendar/render?action=TEMPLATE"
+      +"&text=Meeting"
+      +"&dates="
+      +dt.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z/"
+      +end.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
+      window.open(url);
     };
+  }
+
+  const div=document.getElementById("results");
+  div.innerHTML="";
+
+  // HEATMAP + USERS
+  d.best.forEach(t=>{
+    let p=document.createElement("p");
+
+    const intensity=Math.min(255,50+(t.count*40));
+    p.style.background="rgb(0,"+intensity+",0)";
+    p.style.color="white";
+    p.style.padding="5px";
+
+    p.innerText=
+      new Date(t.time).toLocaleString() +
+      " ("+t.count+")\\nAvailable: " + t.names.join(", ");
+
+    if(!window.locked){
+      p.onclick=async()=>{
+        await fetch("/final/"+id,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({time:t.time})
+        });
+        load();
+      };
+    }
 
     div.appendChild(p);
   });
@@ -241,15 +262,15 @@ load();
 
 </body>
 </html>
-  `);
+`);
 });
 
 // SAVE
-app.post("/submit/:id", (req,res)=>{
-  const {name,times,tz} = req.body;
-  const id = req.params.id;
+app.post("/submit/:id",(req,res)=>{
+  const {name,times}=req.body;
+  const id=req.params.id;
 
-  meetings[id].responses[name] = {times,tz};
+  meetings[id].responses[name]=times;
   saveData(meetings);
 
   res.json({ok:true});
@@ -257,41 +278,47 @@ app.post("/submit/:id", (req,res)=>{
 
 // ZOOM
 app.post("/zoom/:id",(req,res)=>{
-  meetings[req.params.id].zoom = req.body.zoom;
+  meetings[req.params.id].zoom=req.body.zoom;
   saveData(meetings);
   res.json({ok:true});
 });
 
-// FINAL TIME
+// FINAL
 app.post("/final/:id",(req,res)=>{
-  meetings[req.params.id].finalTime = req.body.time;
+  meetings[req.params.id].finalTime=req.body.time;
   saveData(meetings);
   res.json({ok:true});
 });
 
-// RESULTS
+// RESULTS WITH NAMES
 app.get("/results/:id",(req,res)=>{
-  const meeting = meetings[req.params.id];
+  const m=meetings[req.params.id]||{responses:{}};
 
-  const counts = {};
-  const total = Object.keys(meeting.responses).length;
+  const map={};
 
-  Object.values(meeting.responses).forEach(r=>{
-    r.times.forEach(t=>{
-      counts[t]=(counts[t]||0)+1;
+  Object.entries(m.responses).forEach(([name,times])=>{
+    times.forEach(t=>{
+      if(!map[t]) map[t]={count:0,names:[]};
+      map[t].count++;
+      map[t].names.push(name);
     });
   });
 
-  const perfect = Object.entries(counts).filter(([t,c])=>c===total);
-  const best = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const best=Object.entries(map)
+    .map(([time,data])=>({
+      time,
+      count:data.count,
+      names:data.names
+    }))
+    .sort((a,b)=>b.count-a.count)
+    .slice(0,10);
 
   res.json({
-    zoom: meeting.zoom,
-    finalTime: meeting.finalTime,
-    perfect,
+    zoom:m.zoom,
+    finalTime:m.finalTime,
     best
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, ()=>console.log("Running"));
+const PORT=process.env.PORT||3000;
+app.listen(PORT,()=>console.log("Running"));
