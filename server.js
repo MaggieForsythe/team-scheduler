@@ -7,7 +7,63 @@ app.use(express.json());
 
 const DATA_FILE = "data.json";
 
-function loadData() {
+ async function load(){
+  const r = await fetch("/results/"+id);
+  const d = await r.json();
+
+  if(d.leaderCode === leaderCode) isLeader = true;
+  if(d.finalTime) locked = true;
+
+  // 🔒 Hide zoom button for non-leaders
+  if(!isLeader){
+    document.getElementById("zoomBtn").style.display = "none";
+  }
+
+  // ✅ ALWAYS SHOW ZOOM (FIXED)
+  if(d.zoom){
+    document.getElementById("zoomDisplay").innerHTML =
+      "<h3>📹 Zoom Meeting</h3>" +
+      '<a href="'+d.zoom+'" target="_blank">' + d.zoom + "</a>";
+  } else {
+    document.getElementById("zoomDisplay").innerHTML =
+      "<p>No Zoom link added yet</p>";
+  }
+
+  // ✅ FINAL TIME
+  if(d.finalTime){
+    document.getElementById("final").innerHTML =
+      "<h3>✅ FINAL MEETING TIME</h3>" +
+      new Date(d.finalTime).toLocaleString();
+  }
+
+  // ✅ RESULTS
+  const div = document.getElementById("results");
+  div.innerHTML = "";
+
+  if(d.perfect.length === 0){
+    div.innerHTML = "No full match yet";
+    return;
+  }
+
+  d.perfect.forEach(t=>{
+    let p = document.createElement("p");
+    p.innerText = new Date(t.time).toLocaleString();
+
+    if(isLeader && !locked){
+      p.style.cursor = "pointer";
+      p.onclick = async ()=>{
+        await fetch("/final/"+id,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({time:t.time})
+        });
+        load();
+      };
+    }
+
+    div.appendChild(p);
+  });
+}   
   try { return JSON.parse(fs.readFileSync(DATA_FILE)); }
   catch { return {}; }
 }
