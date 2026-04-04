@@ -1,3 +1,4 @@
+app.get("/", (req, res
 const express = require('express');
 const fs = require('fs');
 const { v4: uuid } = require('uuid');
