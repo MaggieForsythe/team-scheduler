@@ -1,9 +1,26 @@
-app.get("/", (req, res
 const express = require('express');
 const fs = require('fs');
 const { v4: uuid } = require('uuid');
 
 const app = express();
+const leader =
+            window.location.origin + "/meeting/" + d.id + "?leader=" + d.leaderCode;
+
+          const team =
+            window.location.origin + "/meeting/" + d.id;
+
+          document.getElementById("links").innerHTML = \`
+            <p><b>Leader Link:</b><br>\${leader}</p>
+            <p><b>Team Link:</b><br>\${team}</p>
+          \`;
+        }
+        </script>
+
+      </body>
+    </html>
+  `);
+});
+
 app.use(express.json());
 
 const DATA_FILE = "data.json";
