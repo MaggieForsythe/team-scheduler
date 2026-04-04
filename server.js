@@ -5,56 +5,76 @@ const { v4: uuid } = require('uuid');
 const app = express();
 app.use(express.json());
 
-const DATA_FILE = "data.json";
+const FILE = "data.json";
 
-function loadData() {
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE));
-  } catch {
-    return {};
-  }
+function load(){ try{return JSON.parse(fs.readFileSync(FILE));}catch{return{}} }
+function save(d){ fs.writeFileSync(FILE, JSON.stringify(d,null,2)); }
+
+let meetings = load();
+
+
+// ================= HOMEPAGE =================
+app.get("/", (req,res)=>{
+res.send(`
+<html>
+<body style="font-family:Arial;text-align:center;padding:40px">
+
+<h1>Team Scheduler</h1>
+
+<button onclick="create()">Create Meeting</button>
+
+<div id="links"></div>
+
+<script>
+
+async function create(){
+  const r = await fetch('/create');
+  const d = await r.json();
+
+  const leader = location.origin + "/meeting/"+d.id+"?leader="+d.leaderCode;
+  const team = location.origin + "/meeting/"+d.id;
+
+  document.getElementById("links").innerHTML =
+    "<p><b>Leader Link:</b><br>"+leader+
+    "<br><button onclick=\\"copyText('"+leader+"')\\">Copy Leader Link</button></p>" +
+
+    "<p><b>Team Link:</b><br>"+team+
+    "<br><button onclick=\\"copyText('"+team+"')\\">Copy Team Link</button></p>";
 }
 
-function saveData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+function copyText(text){
+  navigator.clipboard.writeText(text);
 }
 
-let meetings = loadData();
+</script>
 
-// HOMEPAGE
-app.get("/", (req, res) => {
-  res.send(`
-    <html>
-      <body style="text-align:center;font-family:Arial;padding:40px;">
-        <h1>Team Scheduler</h1>
-
-        <button onclick="create()">Create Meeting</button>
-
-        <div id="links" style="margin-top:20px;"></div>
-
-        <script>
-        async function create(){
-          const r = await fetch('/create');
-          const d = await r.json();
-
-          const leader =
-            window.location.origin + "/meeting/" + d.id + "?leader=" + d.leaderCode;
-
-          const team =
-            window.location.origin + "/meeting/" + d.id;
-
-          document.getElementById("links").innerHTML =
-            "<p><b>Leader Link:</b><br>" + leader + "</p>" +
-            "<p><b>Team Link:</b><br>" + team + "</p>";
-        }
-        </script>
-
-      </body>
-    </html>
-  `);
+</body>
+</html>
+`);
 });
+✅ HOW TO KNOW PART 1 IS COMPLETE
 
-// CREATE MEETING
+Scroll to bottom of what you pasted.
+
+You MUST see this exact ending:
+
+</script>
+
+</body>
+</html>
+`);
+});
+🚨 DO NOT CONTINUE UNTIL:
+
+✔ No red errors
+✔ That exact ending is visible
+✔ No cut-off text
+
+👉 NEXT STEP
+
+Once you confirm PART 1 is in correctly:
+
+👉// ================= CREATE =================
 app.get("/create", (req, res) => {
   const id = uuid().slice(0,6);
   const leaderCode = uuid().slice(0,6);
@@ -67,167 +87,202 @@ app.get("/create", (req, res) => {
     availability: {}
   };
 
-  saveData(meetings);
-
+  save(meetings);
   res.json({ id, leaderCode });
 });
 
-// AVAILABILITY
+
+// ================= SAVE AVAILABILITY =================
 app.post("/availability/:id", (req, res) => {
   const { name, slots } = req.body;
 
   meetings[req.params.id].availability[name] = slots;
 
-  saveData(meetings);
-  res.json({ ok: true });
+  save(meetings);
+  res.json({ ok:true });
 });
 
-// ZOOM
+
+// ================= SAVE ZOOM =================
 app.post("/zoom/:id", (req, res) => {
   meetings[req.params.id].zoom = req.body.zoom;
-  saveData(meetings);
-  res.json({ ok: true });
+  save(meetings);
+  res.json({ ok:true });
 });
 
-// FINAL TIME
+
+// ================= FINAL TIME =================
 app.post("/final/:id", (req, res) => {
   meetings[req.params.id].final = req.body.time;
-  saveData(meetings);
-  res.json({ ok: true });
+  save(meetings);
+  res.json({ ok:true });
 });
 
-// GET DATA
+
+// ================= GET DATA =================
 app.get("/data/:id", (req, res) => {
   res.json(meetings[req.params.id]);
 });
 
-// MEETING PAGE
+
+// ================= MEETING PAGE =================
 app.get("/meeting/:id", (req, res) => {
   res.send(`
-    <html>
-    <body style="font-family:Arial;text-align:center">
+<html>
+<body style="font-family:Arial;text-align:center">
 
-    <h2>Team Scheduler</h2>
+<h2>Team Scheduler</h2>
 
-    <input id="name" placeholder="Your Name"><br><br>
+<input id="name" placeholder="Your Name"><br><br>
 
-    <div id="calendar"></div><br>
+<div id="calendar"></div><br>
 
-    <button onclick="submit()">Submit Availability</button>
+<button onclick="submit()">Submit Availability</button>
 
-    <br><br>
+<br><br>
 
-    <div id="leader"></div>
+<div id="leader"></div>
 
-    <br>
+<br>
 
-    <div id="final"></div>
-    <div id="zoom"></div>
+<div id="final"></div>
+<div id="zoom"></div>
 
-    <script>
+<script>
 
-    const id = location.pathname.split("/")[2];
-    const isLeader = location.search.includes("leader");
+const id = location.pathname.split("/")[2];
+const isLeader = location.search.includes("leader");
 
-    let selected = [];
+let selected = [];
+let dragging = false;
 
-    function build(){
-      let html = "";
-      for(let h=8; h<=21; h++){
-        for(let m=0; m<60; m+=30){
-          const t = h + ":" + (m===0?"00":m);
-          html += "<button onclick=\\"toggle(this,'"+t+"')\\">"+t+"</button>";
-        }
-        html += "<br>";
-      }
-      document.getElementById("calendar").innerHTML = html;
+
+// ===== BUILD CALENDAR =====
+function build(){
+  let html = "";
+  for(let h=8; h<=21; h++){
+    for(let m=0; m<60; m+=30){
+      const t = h + ":" + (m===0?"00":m);
+      html += "<button onmousedown=\\"start(this,'"+t+"')\\" onmouseover=\\"drag(this,'"+t+"')\\" onmouseup=\\"stop()\\">"+t+"</button>";
     }
+    html += "<br>";
+  }
+  document.getElementById("calendar").innerHTML = html;
+}
 
-    function toggle(btn,time){
-      if(btn.classList.contains("on")){
-        btn.classList.remove("on");
-        selected = selected.filter(t=>t!==time);
-      } else {
-        btn.classList.add("on");
-        selected.push(time);
-      }
-    }
 
-    async function submit(){
-      const name = document.getElementById("name").value;
+// ===== DRAG SELECT =====
+function start(btn,t){
+  dragging = true;
+  toggle(btn,t);
+}
 
-      await fetch("/availability/"+id,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({name,slots:selected})
-      });
+function drag(btn,t){
+  if(dragging) toggle(btn,t);
+}
 
-      alert("Saved");
-    }
+function stop(){
+  dragging = false;
+}
 
-    async function load(){
-      const d = await fetch("/data/"+id).then(r=>r.json());
 
-      if(d.zoom){
-        document.getElementById("zoom").innerHTML =
-          '<a href="'+d.zoom+'" target="_blank">Join Zoom</a>';
-      }
+// ===== TOGGLE =====
+function toggle(btn,time){
+  if(btn.classList.contains("on")){
+    btn.classList.remove("on");
+    selected = selected.filter(x=>x!==time);
+  } else {
+    btn.classList.add("on");
+    selected.push(time);
+  }
+}
 
-      if(d.final){
-        document.getElementById("final").innerHTML =
-          "Final Time: " + d.final;
-      }
 
-      if(isLeader){
-        document.getElementById("leader").innerHTML =
-          '<input id="zoomInput" placeholder="Zoom link">' +
-          '<button onclick="saveZoom()">Save Zoom</button>' +
-          '<button onclick="generate()">Generate Best Time</button>';
-      }
-    }
+// ===== SUBMIT =====
+async function submit(){
+  const name = document.getElementById("name").value;
 
-    async function saveZoom(){
-      const zoom = document.getElementById("zoomInput").value;
+  await fetch("/availability/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name,slots:selected})
+  });
 
-      await fetch("/zoom/"+id,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({zoom})
-      });
+  alert("Saved");
+}
 
-      load();
-    }
 
-    async function generate(){
-      const d = await fetch("/data/"+id).then(r=>r.json());
+// ===== LOAD DATA =====
+async function load(){
+  const d = await fetch("/data/"+id).then(r=>r.json());
 
-      const count = {};
+  if(d.zoom){
+    document.getElementById("zoom").innerHTML =
+      '<a href="'+d.zoom+'" target="_blank">Join Zoom</a>';
+  }
 
-      Object.values(d.availability).forEach(arr=>{
-        arr.forEach(t=>{
-          count[t]=(count[t]||0)+1;
-        });
-      });
+  if(d.final){
+    document.getElementById("final").innerHTML =
+      "Final Time: " + d.final;
+  }
 
-      const best = Object.keys(count).sort((a,b)=>count[b]-count[a])[0];
+  if(isLeader){
+    document.getElementById("leader").innerHTML =
+      '<input id="zoomInput" placeholder="Zoom link">' +
+      '<button onclick="saveZoom()">Save Zoom</button>' +
+      '<button onclick="generate()">Generate Best Time</button>';
+  }
+}
 
-      await fetch("/final/"+id,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({time:best})
-      });
 
-      load();
-    }
+// ===== SAVE ZOOM =====
+async function saveZoom(){
+  const zoom = document.getElementById("zoomInput").value;
 
-    build();
-    load();
+  await fetch("/zoom/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({zoom})
+  });
 
-    </script>
+  load();
+}
 
-    </body>
-    </html>
+
+// ===== GENERATE BEST TIME =====
+async function generate(){
+  const d = await fetch("/data/"+id).then(r=>r.json());
+
+  const count = {};
+
+  Object.values(d.availability).forEach(arr=>{
+    arr.forEach(t=>{
+      count[t]=(count[t]||0)+1;
+    });
+  });
+
+  const best = Object.keys(count).sort((a,b)=>count[b]-count[a])[0];
+
+  await fetch("/final/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({time:best})
+  });
+
+  load();
+}
+
+
+build();
+load();
+
+</script>
+
+</body>
+</html>
   `);
 });
 
+
+// ================= SERVER =================
 app.listen(10000, () => console.log("Server running"));
