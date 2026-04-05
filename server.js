@@ -163,7 +163,7 @@ function build(){
   for(let h=8; h<=21; h++){
     for(let m=0; m<60; m+=30){
       const t = h + ":" + (m===0?"00":m);
-      html += "<button onmousedown=\\"start(this,'"+t+"')\\" onmouseover=\\"drag(this,'"+t+"')\\" onmouseup=\\"stop()\\">"+t+"</button>";
+     html += '<button onmousedown="start(this,\''+t+'\')" onmouseover="drag(this,\''+t+'\')" onmouseup="stop()">'+t+'</button>';
     }
     html += "<br>";
   }
