@@ -1,129 +1,138 @@
-const express = require("express");
-const app = express();
+// ===== MEETING PAGE =====
+app.get("/meeting/:id",(req,res)=>{
+res.send(`
+<html>
+<body style="font-family:Arial;text-align:center">
 
-app.use(express.json());
+<h2>Global Team Scheduler</h2>
 
-let responses = {};
+<input id="name" placeholder="Your Name"><br><br>
 
-// HOME
-app.get("/", (req, res) => {
-  res.send(`
-    <html>
-      <body style="font-family: Arial; text-align: center; padding: 20px;">
-        
-        <h1>Team Scheduler</h1>
+<div id="calendar"></div><br>
 
-        <input id="name" placeholder="Your name" />
-        <br><br>
+<button onclick="submit()">Submit Availability</button>
 
-        <input type="date" id="startDate" />
-        <br><br>
+<br><br>
 
-        <button onclick="generate()">Generate Schedule</button>
+<div id="leader"></div>
+<div id="results"></div>
+<div id="final"></div>
+<div id="zoom"></div>
 
-        <div id="schedule"></div>
+<script>
 
-        <br><br>
-        <button onclick="submit()">Submit Availability</button>
+const id = location.pathname.split("/")[2];
+const isLeader = location.search.includes("leader");
 
-        <h2>Best Times:</h2>
-        <div id="results"></div>
+let selected = [];
+let dragging = false;
 
-        <script>
-          let selected = [];
 
-          function generate() {
-            const start = new Date(document.getElementById("startDate").value);
-            const div = document.getElementById("schedule");
-            div.innerHTML = "";
-            selected = [];
+// ===== BUILD 2-WEEK CALENDAR =====
+function build(){
+  let html = "";
 
-            for (let i = 0; i < 14; i++) {
-              let day = new Date(start);
-              day.setDate(start.getDate() + i);
+  for(let d=0; d<14; d++){
+    const date = new Date();
+    date.setDate(date.getDate()+d);
 
-              let h = document.createElement("h3");
-              h.innerText = day.toDateString();
-              div.appendChild(h);
+    html += "<h3>"+date.toDateString()+"</h3>";
 
-              for (let hour = 8; hour <= 21; hour++) {
-                let btn = document.createElement("button");
-                btn.innerText = hour + ":00";
+    for(let h=8; h<=21; h++){
+      for(let m=0; m<60; m+=30){
 
-                let key = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour).toISOString();
+        const dt = new Date(date);
+        dt.setHours(h);
+        dt.setMinutes(m);
 
-                btn.onclick = () => {
-                  if (btn.style.backgroundColor === "lightgreen") {
-                    btn.style.backgroundColor = "";
-                    selected = selected.filter(t => t !== key);
-                  } else {
-                    btn.style.backgroundColor = "lightgreen";
-                    selected.push(key);
-                  }
-                };
+        const utc = dt.toISOString();
 
-                div.appendChild(btn);
-              }
-            }
-          }
+        html += '<button onmousedown="start(this,\\''+utc+'\\')" onmouseover="drag(this,\\''+utc+'\\')" onmouseup="stop()">'+h+':'+(m===0?"00":m)+'</button>';
+      }
+      html += "<br>";
+    }
+  }
 
-          async function submit() {
-            const name = document.getElementById("name").value;
+  document.getElementById("calendar").innerHTML = html;
+}
 
-            await fetch("/submit", {
-              method: "POST",
-              headers: {"Content-Type":"application/json"},
-              body: JSON.stringify({name, times: selected})
-            });
 
-            alert("Saved!");
-          }
+// ===== DRAG SELECT =====
+function start(btn,t){
+  dragging = true;
+  toggle(btn,t);
+}
 
-          async function load() {
-            const res = await fetch("/results");
-            const data = await res.json();
+function drag(btn,t){
+  if(dragging) toggle(btn,t);
+}
 
-            const div = document.getElementById("results");
-            div.innerHTML = "";
+function stop(){
+  dragging = false;
+}
 
-            data.forEach(([t, c]) => {
-              let d = document.createElement("div");
-              d.innerText = new Date(t).toLocaleString() + " (" + c + ")";
-              div.appendChild(d);
-            });
-          }
 
-          setInterval(load, 3000);
-        </script>
+// ===== TOGGLE =====
+function toggle(btn,time){
+  if(btn.classList.contains("on")){
+    btn.classList.remove("on");
+    selected = selected.filter(x=>x!==time);
+  } else {
+    btn.classList.add("on");
+    selected.push(time);
+  }
+}
 
-      </body>
-    </html>
-  `);
-});
 
-// SAVE
-app.post("/submit", (req, res) => {
-  responses[req.body.name] = req.body.times;
-  res.sendStatus(200);
-});
+// ===== SUBMIT =====
+async function submit(){
+  const name = document.getElementById("name").value;
 
-// RESULTS
-app.get("/results", (req, res) => {
-  let counts = {};
-
-  Object.values(responses).forEach(times => {
-    times.forEach(t => {
-      counts[t] = (counts[t] || 0) + 1;
-    });
+  await fetch("/availability/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name,slots:selected})
   });
 
-  const best = Object.entries(counts)
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,3);
+  alert("Saved");
+}
 
-  res.json(best);
-});
 
-app.listen(3000, () => {
-  console.log("Scheduler running on port 3000");
-});
+// ===== LOAD =====
+async function load(){
+  const d = await fetch("/data/"+id).then(r=>r.json());
+
+  // FINAL TIME
+  if(d.final){
+    document.getElementById("final").innerHTML =
+      "<h3>FINAL: "+new Date(d.final).toLocaleString()+"</h3>";
+  }
+
+  // ZOOM
+  if(d.zoom){
+    document.getElementById("zoom").innerHTML =
+      '<a href="'+d.zoom+'" target="_blank">Join Zoom</a>';
+  }
+
+  // LEADER
+  if(isLeader){
+    document.getElementById("leader").innerHTML =
+      '<input id="zoomInput" placeholder="Zoom link">' +
+      '<button onclick="saveZoom()">Save Zoom</button>' +
+      '<button onclick="generate()">Generate Best Times</button>';
+  }
+}
+
+
+// ===== SAVE ZOOM =====
+async function saveZoom(){
+  const zoom = document.getElementById("zoomInput").value;
+
+  await fetch("/zoom/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({zoom})
+  });
+
+
+
