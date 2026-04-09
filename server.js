@@ -1,4 +1,4 @@
-// ===== MEETING PAGE =====
+  load();// ===== MEETING PAGE =====
 app.get("/meeting/:id",(req,res)=>{
 res.send(`
 <html>
@@ -134,5 +134,151 @@ async function saveZoom(){
     body:JSON.stringify({zoom})
   });
 
+  load();
+}
 
 
+// ===== GENERATE TOP 3 =====
+async function generate(){
+  const d = await fetch("/data/"+id).then(r=>r.json());
+
+  const count = {};
+  const names = {};
+
+  Object.entries(d.availability).forEach(([person,slots])=>{
+    slots.forEach(t=>{
+      count[t] = (count[t]||0)+1;
+
+      if(!names[t]) names[t]=[];
+      names[t].push(person);
+    });
+  });
+
+  const sorted = Object.keys(count).sort((a,b)=>count[b]-count[a]);
+
+  let html = "<h3>Top 3 Times</h3>";
+
+  sorted.slice(0,3).forEach(t=>{
+    html += "<p>"+new Date(t).toLocaleString()+" ("+count[t]+" people)<br>"+names[t].join(", ")+"</p>";
+  });
+
+  // ALL AVAILABLE
+  const total = Object.keys(d.availability).length;
+  const all = sorted.filter(t=>count[t]===total);
+
+  if(all.length){
+    html += "<h3>Everyone Available</h3>";
+    all.forEach(t=>{
+      html += "<p>"+new Date(t).toLocaleString()+"</p>";
+    });
+  }
+
+  // FINALIZE
+  html += "<h3>Select Final</h3>";
+
+  sorted.slice(0,3).forEach(t=>{
+    html += '<button onclick="finalize(\\''+t+'\\')">'+new Date(t).toLocaleString()+'</button>';
+  });
+
+  document.getElementById("results").innerHTML = html;
+}
+
+
+// ===== FINALIZE =====
+async function finalize(time){
+  await fetch("/final/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({time})
+  });
+
+  load();
+}
+
+
+build();
+load();
+
+</script>
+
+</body>
+</html>
+`);
+});
+
+
+// ===== SERVER =====
+app.listen(10000,()=>console.log("Server running"));}
+
+
+// ===== GENERATE TOP 3 =====
+async function generate(){
+  const d = await fetch("/data/"+id).then(r=>r.json());
+
+  const count = {};
+  const names = {};
+
+  Object.entries(d.availability).forEach(([person,slots])=>{
+    slots.forEach(t=>{
+      count[t] = (count[t]||0)+1;
+
+      if(!names[t]) names[t]=[];
+      names[t].push(person);
+    });
+  });
+
+  const sorted = Object.keys(count).sort((a,b)=>count[b]-count[a]);
+
+  let html = "<h3>Top 3 Times</h3>";
+
+  sorted.slice(0,3).forEach(t=>{
+    html += "<p>"+new Date(t).toLocaleString()+" ("+count[t]+" people)<br>"+names[t].join(", ")+"</p>";
+  });
+
+  // ALL AVAILABLE
+  const total = Object.keys(d.availability).length;
+  const all = sorted.filter(t=>count[t]===total);
+
+  if(all.length){
+    html += "<h3>Everyone Available</h3>";
+    all.forEach(t=>{
+      html += "<p>"+new Date(t).toLocaleString()+"</p>";
+    });
+  }
+
+  // FINALIZE
+  html += "<h3>Select Final</h3>";
+
+  sorted.slice(0,3).forEach(t=>{
+    html += '<button onclick="finalize(\\''+t+'\\')">'+new Date(t).toLocaleString()+'</button>';
+  });
+
+  document.getElementById("results").innerHTML = html;
+}
+
+
+// ===== FINALIZE =====
+async function finalize(time){
+  await fetch("/final/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({time})
+  });
+
+  load();
+}
+
+
+build();
+load();
+
+</script>
+
+</body>
+</html>
+`);
+});
+
+
+// ===== SERVER =====
+app.listen(10000,()=>console.log("Server running"));
